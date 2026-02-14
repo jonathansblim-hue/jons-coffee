@@ -1,1 +1,16 @@
 order_number,customer_name,item_name,size,temperature,milk,ice_level,sweetness,modifications,quantity,base_price,modifications_price,total_price,order_subtotal,order_tax,order_total,status,cancel_reason,created_at,completed_at
+1,Sarah,Iced Oat Milk Latte,Large,Iced,Oat Milk,Regular,Regular,,1,5.00,0.50,5.50,5.50,0.49,5.99,completed,,2026-02-14 08:15:00,2026-02-14 08:19:00
+2,Mike,Americano,Small,Hot,Whole Milk,,,1,3.00,0.00,3.00,6.50,0.58,7.08,completed,,2026-02-14 08:22:00,2026-02-14 08:25:00
+2,Mike,Chocolate Croissant,,,,,,1,4.00,0.00,4.00,6.50,0.58,7.08,completed,,2026-02-14 08:22:00,2026-02-14 08:25:00
+3,Guest,Cold Brew,Large,Iced,Whole Milk,Less Ice,Less Sugar,Extra Espresso Shot,1,5.00,1.50,6.50,6.50,0.58,7.08,completed,,2026-02-14 09:01:00,2026-02-14 09:05:00
+4,Emma,Matcha Latte,Large,Iced,Oat Milk,Regular,Less Sugar,,1,5.25,0.50,5.75,9.25,0.82,10.07,completed,,2026-02-14 09:10:00,2026-02-14 09:16:00
+4,Emma,Plain Croissant,,,,,,1,3.50,0.00,3.50,9.25,0.82,10.07,completed,,2026-02-14 09:10:00,2026-02-14 09:16:00
+5,David,Coffee Frappuccino,Small,Iced,Almond Milk,Regular,Extra Sugar,Caramel Syrup,1,5.50,1.25,6.75,6.75,0.60,7.35,cancelled,Customer request,2026-02-14 09:30:00,2026-02-14 09:32:00
+6,Guest,Mocha,Large,Hot,Whole Milk,,Regular,Hazelnut Syrup,1,5.50,0.50,6.00,8.50,0.75,9.25,completed,,2026-02-14 09:45:00,2026-02-14 09:50:00
+6,Guest,Chocolate Chip Cookie,,,,,,1,2.50,0.00,2.50,8.50,0.75,9.25,completed,,2026-02-14 09:45:00,2026-02-14 09:50:00
+7,Lisa,Jasmine Tea,Small,Hot,,,No Sugar,,1,3.00,0.00,3.00,3.00,0.27,3.27,in_progress,,2026-02-14 10:05:00,
+8,Alex,Latte,Large,Hot,Skim Milk,,Regular,Extra Espresso Shot,2,5.00,1.50,6.50,16.50,1.46,17.96,pending,,2026-02-14 10:12:00,
+8,Alex,Banana Bread,,,,,,1,3.00,0.00,3.00,16.50,1.46,17.96,pending,,2026-02-14 10:12:00,
+9,Guest,Lemon Green Tea,Large,Iced,,Regular,Less Sugar,,1,4.25,0.00,4.25,4.25,0.38,4.63,cancelled,Out of stock,2026-02-14 10:20:00,2026-02-14 10:21:00
+10,Jordan,Americano,Large,Iced,Whole Milk,Extra Ice,No Sugar,Extra Espresso Shot,1,4.00,1.50,5.50,9.00,0.80,9.80,pending,,2026-02-14 10:30:00,
+10,Jordan,Plain Croissant,,,,,,1,3.50,0.00,3.50,9.00,0.80,9.80,pending,,2026-02-14 10:30:00,
