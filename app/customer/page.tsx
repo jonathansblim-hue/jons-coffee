@@ -1215,6 +1215,9 @@ export default function CustomerPage() {
                   &ldquo;{liveTranscript}&rdquo;
                 </p>
               )}
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Tap the mic button when you&apos;re done speaking
+              </p>
             </div>
           )}
           {isTranscribing && (
