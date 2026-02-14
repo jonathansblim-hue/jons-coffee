@@ -227,8 +227,8 @@ export default function CustomerPage() {
           resolve();
         };
 
-        // Timeout safety — if TTS doesn't finish in 30s, force finish
-        const timeout = setTimeout(finish, 30000);
+        // Timeout safety — if TTS doesn't finish in 10s, force finish
+        const timeout = setTimeout(finish, 10000);
         const finishClean = () => {
           clearTimeout(timeout);
           finish();
@@ -246,7 +246,6 @@ export default function CustomerPage() {
           if (contentType?.includes("audio/mpeg")) {
             const audioBlob = await res.blob();
             if (audioBlob.size < 100) {
-              // Empty or invalid audio — skip
               finishClean();
               return;
             }
@@ -268,29 +267,46 @@ export default function CustomerPage() {
               finishClean();
             }
           } else {
-            // ElevenLabs unavailable — use browser TTS fallback
+            // Server TTS unavailable — use browser TTS fallback with mobile-safe timeout
             if ("speechSynthesis" in window) {
-              window.speechSynthesis.cancel(); // clear any stuck queue
+              window.speechSynthesis.cancel();
               const utterance = new SpeechSynthesisUtterance(speakableText);
               utterance.rate = 1.0;
-              utterance.onend = finishClean;
-              utterance.onerror = finishClean;
+
+              let ended = false;
+              const safeFinish = () => {
+                if (!ended) {
+                  ended = true;
+                  finishClean();
+                }
+              };
+
+              utterance.onend = safeFinish;
+              utterance.onerror = safeFinish;
+
+              // Mobile Safari often doesn't fire onend — poll to detect when speaking stops
+              const pollInterval = setInterval(() => {
+                if (!window.speechSynthesis.speaking) {
+                  clearInterval(pollInterval);
+                  safeFinish();
+                }
+              }, 500);
+
+              // Hard cap for browser TTS at 8s
+              setTimeout(() => {
+                clearInterval(pollInterval);
+                window.speechSynthesis.cancel();
+                safeFinish();
+              }, 8000);
+
               window.speechSynthesis.speak(utterance);
             } else {
               finishClean();
             }
           }
         } catch {
-          // Network error — try browser TTS
-          if ("speechSynthesis" in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(speakableText);
-            utterance.onend = finishClean;
-            utterance.onerror = finishClean;
-            window.speechSynthesis.speak(utterance);
-          } else {
-            finishClean();
-          }
+          // Network error — skip TTS entirely on failure
+          finishClean();
         }
       });
     },
@@ -937,9 +953,9 @@ export default function CustomerPage() {
   // ─── RENDER: Chat Interface ────────────────────────────────
   // ═════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-coffee-50 via-white to-amber-50">
+    <div className="h-[100dvh] flex flex-col bg-gradient-to-br from-coffee-50 via-white to-amber-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-coffee-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-coffee-100 px-4 py-3 flex items-center justify-between flex-shrink-0 z-10">
         <button
           onClick={handleCancelOrder}
           className="flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors text-sm font-medium"
@@ -1012,7 +1028,7 @@ export default function CustomerPage() {
       {/* Chat Messages */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl mx-auto w-full"
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-6 space-y-4 max-w-2xl mx-auto w-full"
       >
         {messages.map((message) => {
           const hasReceipt = message.role === "assistant" && !!extractOrderData(message.content);
