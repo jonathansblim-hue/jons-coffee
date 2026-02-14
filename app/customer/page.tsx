@@ -346,7 +346,7 @@ export default function CustomerPage() {
       }
       speechRecognitionRef.current = null;
     }
-    setLiveTranscript("");
+    // Don't clear liveTranscript here — keep it visible during transcription
   };
 
   // ─── Silence Detection ────────────────────────────────────────
@@ -458,12 +458,15 @@ export default function CustomerPage() {
           const data = await res.json();
 
           if (data.text && data.text.trim()) {
+            setLiveTranscript("");
             sendMessage(data.text.trim());
           } else {
+            setLiveTranscript("");
             setIsTranscribing(false);
           }
         } catch (error) {
           console.error("Transcription failed:", error);
+          setLiveTranscript("");
           setIsTranscribing(false);
         }
       };
@@ -650,6 +653,7 @@ export default function CustomerPage() {
     setIsLoading(false);
     setIsTranscribing(false);
     setIsRecording(false);
+    setLiveTranscript("");
     setCartItems([]);
     setIsCartOpen(false);
     conversationIdRef.current = null;
@@ -1209,9 +1213,16 @@ export default function CustomerPage() {
             </div>
           )}
           {isTranscribing && (
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border-2 border-coffee-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-coffee-600 font-medium">Transcribing...</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-coffee-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-coffee-600 font-medium">Transcribing...</span>
+              </div>
+              {liveTranscript && (
+                <p className="text-sm text-gray-500 italic text-center max-w-xs">
+                  &ldquo;{liveTranscript}&rdquo;
+                </p>
+              )}
             </div>
           )}
           {isSpeaking && (
