@@ -632,7 +632,7 @@ export default function CustomerPage() {
       id: uuidv4(),
       role: "assistant",
       content:
-        "Hey there! Welcome to Jon's Coffee! ☕ I'm Jo, your AI barista. What can I get started for you today?",
+        "Hey there! What would you like?",
       timestamp: new Date(),
     };
     setMessages([greeting]);
