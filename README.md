@@ -1,16 +1,17 @@
 # Jon's Coffee - AI Voice Cashier
 
-An AI-powered ordering system for NYC Coffee, a busy New York City coffee shop. Built with Next.js, OpenAI, Supabase, and ElevenLabs.
+An AI-powered ordering system for NYC Coffee, a busy New York City coffee shop. Built with Next.js, Google Gemini, Supabase, and ElevenLabs.
 
 **Live Demo:** [Deployed URL]
 
 ## Features
 
 ### Customer View - AI Voice Cashier
-- **Voice ordering** via OpenAI Whisper speech-to-text
+- **Voice ordering** via browser-native Speech Recognition API (no API key needed)
 - **Text-to-speech** responses via ElevenLabs (with browser fallback)
 - **Text chat** toggle for quiet ordering
-- Multi-turn conversational ordering with GPT-4o
+- Multi-turn conversational ordering with Google Gemini 2.0 Flash
+- Live transcript preview while speaking
 - Smart menu rules enforcement (no hot Frappuccinos, shot limits, etc.)
 - Automatic order receipt generation
 
@@ -38,8 +39,8 @@ An AI-powered ordering system for NYC Coffee, a busy New York City coffee shop. 
 | Language | TypeScript |
 | Styling | Tailwind CSS |
 | Database | Supabase (PostgreSQL) |
-| AI Chat | OpenAI GPT-4o |
-| Speech-to-Text | OpenAI Whisper |
+| AI Chat | Google Gemini 2.0 Flash |
+| Speech-to-Text | Browser Speech Recognition API |
 | Text-to-Speech | ElevenLabs (browser fallback) |
 | Charts | Recharts |
 | Hosting | Railway |
@@ -90,7 +91,7 @@ Fill in your credentials:
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ELEVENLABS_API_KEY=your_elevenlabs_api_key (optional)
 ELEVENLABS_VOICE_ID=your_voice_id (optional)
 ```

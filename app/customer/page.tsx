@@ -44,9 +44,10 @@ export default function CustomerPage() {
     total: number;
   } | null>(null);
 
+  const [liveTranscript, setLiveTranscript] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -248,50 +249,56 @@ export default function CustomerPage() {
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
+      if (!SpeechRecognition) {
+        alert(
+          "Speech recognition is not supported in this browser. Please use Chrome or Edge."
+        );
+        return;
+      }
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-        stream.getTracks().forEach((track) => track.stop());
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
 
-        // Transcribe
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "recording.webm");
-
-        try {
-          setIsLoading(true);
-          const res = await fetch("/api/transcribe", {
-            method: "POST",
-            body: formData,
-          });
-
-          const data = await res.json();
-          if (data.text) {
-            sendMessage(data.text);
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let interim = "";
+        let final = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += transcript;
+          } else {
+            interim += transcript;
           }
-        } catch (error) {
-          console.error("Transcription failed:", error);
-          setIsLoading(false);
+        }
+        setLiveTranscript(final || interim);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecording(false);
+        setLiveTranscript("");
+        if (event.error === "not-allowed") {
+          alert(
+            "Microphone access is required for voice ordering. Please allow microphone access in your browser settings."
+          );
         }
       };
 
-      mediaRecorder.start();
+      recognition.onend = () => {
+        // Recognition ended — handled in stopRecording
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
       setIsRecording(true);
+      setLiveTranscript("");
     } catch (error) {
       console.error("Failed to start recording:", error);
       alert(
@@ -301,9 +308,15 @@ export default function CustomerPage() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
       setIsRecording(false);
+
+      // Send the transcribed text
+      if (liveTranscript.trim()) {
+        sendMessage(liveTranscript.trim());
+      }
+      setLiveTranscript("");
     }
   };
 
@@ -563,7 +576,9 @@ export default function CustomerPage() {
                 </button>
                 <p className="text-xs text-coffee-400">
                   {isRecording
-                    ? "Listening... Release to send"
+                    ? liveTranscript
+                      ? `"${liveTranscript}"`
+                      : "Listening... Release to send"
                     : isLoading
                       ? "Processing..."
                       : "Hold to speak"}

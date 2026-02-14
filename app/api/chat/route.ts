@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MENU_TEXT, DRINK_RULES } from "@/lib/menu";
 
-function getOpenAI() {
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+function getGemini() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Missing GEMINI_API_KEY environment variable");
+  return new GoogleGenerativeAI(apiKey);
 }
 
-const SYSTEM_PROMPT = `You are a friendly, efficient AI cashier at NYC Coffee, a busy coffee shop at 512 West 43rd Street, New York, NY. Your name is Jo.
+const SYSTEM_PROMPT = `You are a friendly, efficient AI cashier at Jon's Coffee, a busy coffee shop at 512 West 43rd Street, New York, NY. Your name is Jo.
 
 ${MENU_TEXT}
 
@@ -64,22 +64,35 @@ export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages.map((m: { role: string; content: string }) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
+    const genAI = getGemini();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: SYSTEM_PROMPT,
     });
 
-    const reply = completion.choices[0]?.message?.content || "I'm sorry, I didn't catch that. Could you repeat your order?";
+    // Convert messages to Gemini format
+    // Gemini uses "user" and "model" roles
+    const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
-    return NextResponse.json({ message: reply });
+    const lastMessage = messages[messages.length - 1];
+
+    const chat = model.startChat({
+      history,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    const result = await chat.sendMessage(lastMessage.content);
+    const reply = result.response.text();
+
+    return NextResponse.json({
+      message: reply || "I'm sorry, I didn't catch that. Could you repeat your order?",
+    });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(
