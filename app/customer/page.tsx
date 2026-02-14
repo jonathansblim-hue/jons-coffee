@@ -953,9 +953,9 @@ export default function CustomerPage() {
   // ─── RENDER: Chat Interface ────────────────────────────────
   // ═════════════════════════════════════════════════════════════
   return (
-    <div className="h-[100dvh] flex flex-col bg-gradient-to-br from-coffee-50 via-white to-amber-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-coffee-50 via-white to-amber-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-coffee-100 px-4 py-3 flex items-center justify-between flex-shrink-0 z-10">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-coffee-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <button
           onClick={handleCancelOrder}
           className="flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors text-sm font-medium"
