@@ -441,8 +441,12 @@ export default function CustomerPage() {
           type: mediaRecorder.mimeType || "audio/webm",
         });
 
-        // Only transcribe if we have meaningful audio (> 1KB)
-        if (audioBlob.size < 1000) {
+        console.log("Audio blob size:", audioBlob.size, "bytes, chunks:", audioChunksRef.current.length);
+
+        // Only transcribe if we have meaningful audio (> 500 bytes)
+        if (audioBlob.size < 500) {
+          console.log("Audio too small, skipping transcription");
+          setLiveTranscript("");
           return;
         }
 
@@ -456,6 +460,7 @@ export default function CustomerPage() {
             body: formData,
           });
           const data = await res.json();
+          console.log("Transcription result:", data);
 
           if (data.text && data.text.trim()) {
             setLiveTranscript("");
@@ -471,7 +476,7 @@ export default function CustomerPage() {
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(250); // collect data every 250ms for reliability
       setIsRecording(true);
 
       // Start silence detection and live preview
