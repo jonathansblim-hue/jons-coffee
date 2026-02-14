@@ -39,7 +39,7 @@ An AI-powered ordering system for NYC Coffee, a busy New York City coffee shop. 
 | Language | TypeScript |
 | Styling | Tailwind CSS |
 | Database | Supabase (PostgreSQL) |
-| AI Chat | Google Gemini 2.0 Flash |
+| AI Chat | Google Gemini 3.0 Flash |
 | Speech-to-Text | Browser Speech Recognition API |
 | Text-to-Speech | ElevenLabs (browser fallback) |
 | Charts | Recharts |

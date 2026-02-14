@@ -36,7 +36,7 @@ interface Order {
   subtotal: number;
   tax: number;
   total: number;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "completed" | "cancelled";
   created_at: string;
   completed_at: string | null;
 }
@@ -52,20 +52,36 @@ const COLORS = [
   "#c87029",
 ];
 
+interface AnalyticsData {
+  totalConversations: number;
+  convertedConversations: number;
+  conversionRate: number;
+  offMenuItems: { name: string; count: number }[];
+  upsellItems: { name: string; attempts: number; successes: number; successRate: number }[];
+  totalUpsellAttempts: number;
+  totalUpsellSuccesses: number;
+  overallUpsellRate: number;
+}
+
 export default function OwnerPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<"today" | "7days" | "30days" | "all">("today");
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders");
-      const data = await res.json();
-      if (data.orders) {
-        setOrders(data.orders);
-      }
+      const [ordersRes, analyticsRes] = await Promise.all([
+        fetch("/api/orders"),
+        fetch("/api/analytics"),
+      ]);
+      const ordersData = await ordersRes.json();
+      const analyticsData = await analyticsRes.json();
+
+      if (ordersData.orders) setOrders(ordersData.orders);
+      if (!analyticsData.error) setAnalytics(analyticsData);
     } catch (error) {
-      console.error("Failed to fetch orders:", error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -131,6 +147,7 @@ export default function OwnerPage() {
       totalRevenue,
       totalOrders,
       completedOrders,
+      cancelledOrders: filteredOrders.filter((o) => o.status === "cancelled").length,
       avgOrderValue,
       totalItems,
       avgItemsPerOrder,
@@ -337,69 +354,284 @@ export default function OwnerPage() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <MetricCard
-            label="Total Revenue"
-            value={`$${metrics.totalRevenue.toFixed(2)}`}
-            icon="💰"
-            color="bg-emerald-50 border-emerald-200"
-          />
-          <MetricCard
-            label="Total Orders"
-            value={metrics.totalOrders.toString()}
-            icon="📋"
-            color="bg-blue-50 border-blue-200"
-          />
-          <MetricCard
-            label="Avg Order Value"
-            value={`$${metrics.avgOrderValue.toFixed(2)}`}
-            icon="📈"
-            color="bg-purple-50 border-purple-200"
-          />
-          <MetricCard
-            label="Avg Fulfillment"
-            value={
-              metrics.avgFulfillmentMins > 0
-                ? `${metrics.avgFulfillmentMins.toFixed(1)} min`
-                : "N/A"
-            }
-            icon="⏱️"
-            color="bg-amber-50 border-amber-200"
-          />
+        {/* Top Row: Revenue + Order Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Revenue Panel */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">💰</span>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Revenue</h3>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">${metrics.totalRevenue.toFixed(2)}</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
+              {metrics.totalOrders} order{metrics.totalOrders !== 1 ? "s" : ""} total
+            </p>
+            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100">
+              <div>
+                <p className="text-lg font-bold text-gray-900">${metrics.avgOrderValue.toFixed(2)}</p>
+                <p className="text-[11px] text-gray-400">Avg Order</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{metrics.totalItems}</p>
+                <p className="text-[11px] text-gray-400">Items Sold</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{metrics.avgItemsPerOrder.toFixed(1)}</p>
+                <p className="text-[11px] text-gray-400">Items/Order</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Order Status Panel */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">📋</span>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Order Status</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                <p className="text-2xl font-bold text-amber-700">{metrics.pendingOrders}</p>
+                <p className="text-[11px] text-amber-500 font-medium">Pending</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                <p className="text-2xl font-bold text-blue-700">
+                  {filteredOrders.filter((o) => o.status === "in_progress").length}
+                </p>
+                <p className="text-[11px] text-blue-500 font-medium">In Progress</p>
+              </div>
+              <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                <p className="text-2xl font-bold text-emerald-700">{metrics.completedOrders}</p>
+                <p className="text-[11px] text-emerald-500 font-medium">Completed</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                <p className="text-2xl font-bold text-red-600">{metrics.cancelledOrders}</p>
+                <p className="text-[11px] text-red-400 font-medium">Cancelled</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <p className="text-2xl font-bold text-gray-700">
+                  {metrics.avgFulfillmentMins > 0
+                    ? `${metrics.avgFulfillmentMins.toFixed(1)}m`
+                    : "N/A"}
+                </p>
+                <p className="text-[11px] text-gray-400 font-medium">Avg Fulfillment</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Secondary Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <MetricCard
-            label="Items Sold"
-            value={metrics.totalItems.toString()}
-            icon="☕"
-            color="bg-coffee-50 border-coffee-200"
-            small
-          />
-          <MetricCard
-            label="Avg Items/Order"
-            value={metrics.avgItemsPerOrder.toFixed(1)}
-            icon="🛒"
-            color="bg-indigo-50 border-indigo-200"
-            small
-          />
-          <MetricCard
-            label="Completed"
-            value={metrics.completedOrders.toString()}
-            icon="✅"
-            color="bg-green-50 border-green-200"
-            small
-          />
-          <MetricCard
-            label="Pending"
-            value={metrics.pendingOrders.toString()}
-            icon="⏳"
-            color="bg-orange-50 border-orange-200"
-            small
-          />
-        </div>
+        {/* Second Row: Conversion Funnel + AI Performance */}
+        {analytics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Conversion Funnel Panel */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🎯</span>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Conversion Funnel</h3>
+              </div>
+              {(() => {
+                const fulfilledOrders = analytics.convertedConversations - metrics.cancelledOrders;
+                const fulfilledRate = analytics.totalConversations > 0
+                  ? (fulfilledOrders / analytics.totalConversations) * 100
+                  : 0;
+                return (
+                  <>
+                    <div className="flex items-end gap-6 mb-4">
+                      <div>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {analytics.totalConversations > 0
+                            ? `${fulfilledRate.toFixed(1)}%`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Conversion Rate (excl. cancelled)</p>
+                      </div>
+                    </div>
+                    {/* Funnel Visual */}
+                    <div className="space-y-2 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-full bg-violet-100 rounded-full h-7 relative overflow-hidden">
+                          <div className="absolute inset-0 flex items-center px-3">
+                            <span className="text-xs font-semibold text-violet-700">
+                              Conversations Started
+                            </span>
+                            <span className="text-xs font-bold text-violet-800 ml-auto">
+                              {analytics.totalConversations}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="bg-blue-100 rounded-full h-7 relative overflow-hidden"
+                          style={{
+                            width: analytics.totalConversations > 0
+                              ? `${Math.max(30, analytics.conversionRate)}%`
+                              : "30%",
+                          }}
+                        >
+                          <div className="absolute inset-0 flex items-center px-3">
+                            <span className="text-xs font-semibold text-blue-700">
+                              Orders Placed
+                            </span>
+                            <span className="text-xs font-bold text-blue-800 ml-auto">
+                              {analytics.convertedConversations}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="bg-emerald-100 rounded-full h-7 relative overflow-hidden"
+                          style={{
+                            width: analytics.totalConversations > 0
+                              ? `${Math.max(25, fulfilledRate)}%`
+                              : "25%",
+                          }}
+                        >
+                          <div className="absolute inset-0 flex items-center px-3">
+                            <span className="text-xs font-semibold text-emerald-700">
+                              Orders Fulfilled
+                            </span>
+                            <span className="text-xs font-bold text-emerald-800 ml-auto">
+                              {fulfilledOrders}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {metrics.cancelledOrders > 0 && (
+                        <p className="text-[10px] text-red-400 pt-1">
+                          {metrics.cancelledOrders} order{metrics.cancelledOrders !== 1 ? "s" : ""} cancelled
+                        </p>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* AI Performance Panel */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🤖</span>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">AI Performance</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {analytics.totalUpsellAttempts > 0
+                      ? `${analytics.overallUpsellRate.toFixed(1)}%`
+                      : "N/A"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Upsell Success Rate</p>
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {analytics.offMenuItems.length}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Off-Menu Requests</p>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-gray-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Upsell Attempts</span>
+                  <span className="text-sm font-semibold text-gray-700">{analytics.totalUpsellAttempts}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Upsell Accepted</span>
+                  <span className="text-sm font-semibold text-teal-600">{analytics.totalUpsellSuccesses}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Unique Off-Menu Items</span>
+                  <span className="text-sm font-semibold text-yellow-600">{analytics.offMenuItems.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upsell & Off-Menu Details */}
+        {analytics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Upsell Performance */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                Upsell Performance
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Which items are most successfully upsold by the AI
+              </p>
+              {analytics.upsellItems.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">
+                  No upsell data yet — start some conversations!
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {analytics.upsellItems.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-teal-400 rounded-full transition-all"
+                              style={{ width: `${item.successRate}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {item.successRate.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-xs text-gray-500">
+                          <span className="font-semibold text-teal-600">{item.successes}</span>
+                          {" / "}
+                          <span>{item.attempts}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400">accepted / suggested</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Off-Menu Requests */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                Off-Menu Requests
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Items customers ask for that aren&apos;t on the menu — consider adding them!
+              </p>
+              {analytics.offMenuItems.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">
+                  No off-menu requests yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {analytics.offMenuItems.map((item, idx) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between bg-yellow-50 rounded-lg px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-yellow-600 w-5">
+                          {idx + 1}.
+                        </span>
+                        <span className="text-sm text-gray-800">{item.name}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">
+                        {item.count} request{item.count !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -519,42 +751,63 @@ export default function OwnerPage() {
                 No orders yet
               </p>
             ) : (
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryBreakdown}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={70}
-                      paddingAngle={5}
-                      dataKey="revenue"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                    >
-                      {categoryBreakdown.map((_entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => [
-                        `$${value.toFixed(2)}`,
-                        "Revenue",
-                      ]}
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "1px solid #e5e7eb",
-                        fontSize: "12px",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryBreakdown}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={60}
+                        paddingAngle={5}
+                        dataKey="revenue"
+                      >
+                        {categoryBreakdown.map((_entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => [
+                          `$${value.toFixed(2)}`,
+                          "Revenue",
+                        ]}
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                          fontSize: "12px",
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Legend */}
+                <div className="space-y-2 mt-3 pt-3 border-t border-gray-100">
+                  {categoryBreakdown.map((cat, index) => {
+                    const totalCatRevenue = categoryBreakdown.reduce((s, c) => s + c.revenue, 0);
+                    const pct = totalCatRevenue > 0 ? ((cat.revenue / totalCatRevenue) * 100).toFixed(0) : "0";
+                    return (
+                      <div key={cat.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-sm text-gray-700">{cat.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-gray-900">{pct}%</span>
+                          <span className="text-xs text-gray-400 ml-1.5">${cat.revenue.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
 
@@ -683,32 +936,3 @@ export default function OwnerPage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  icon,
-  color,
-  small,
-}: {
-  label: string;
-  value: string;
-  icon: string;
-  color: string;
-  small?: boolean;
-}) {
-  return (
-    <div
-      className={`${color} border rounded-xl ${small ? "p-3" : "p-4"} transition-all hover:shadow-sm`}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <span className={`${small ? "text-lg" : "text-2xl"}`}>{icon}</span>
-      </div>
-      <p
-        className={`${small ? "text-lg" : "text-2xl"} font-bold text-gray-900`}
-      >
-        {value}
-      </p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-    </div>
-  );
-}

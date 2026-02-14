@@ -8,28 +8,54 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
-    const { status } = body;
+    const { status, cancel_reason } = body;
 
-    if (!["pending", "in_progress", "completed"].includes(status)) {
+    if (!["pending", "in_progress", "completed", "cancelled"].includes(status)) {
       return NextResponse.json(
-        { error: "Invalid status. Must be: pending, in_progress, or completed" },
+        { error: "Invalid status. Must be: pending, in_progress, completed, or cancelled" },
         { status: 400 }
       );
     }
 
     const updateData: Record<string, unknown> = { status };
 
-    if (status === "completed") {
+    if (status === "completed" || status === "cancelled") {
       updateData.completed_at = new Date().toISOString();
     }
 
+    if (status === "cancelled" && cancel_reason) {
+      updateData.cancel_reason = cancel_reason;
+    }
+
     const supabase = getSupabase();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("orders")
       .update(updateData)
       .eq("id", params.id)
       .select()
       .single();
+
+    // If the cancel_reason column doesn't exist yet, retry without it
+    if (error && cancel_reason) {
+      console.warn("Retrying without cancel_reason (column may not exist yet)");
+      const fallbackData: Record<string, unknown> = { status };
+      if (status === "completed" || status === "cancelled") {
+        fallbackData.completed_at = new Date().toISOString();
+      }
+      const retry = await supabase
+        .from("orders")
+        .update(fallbackData)
+        .eq("id", params.id)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+
+      // Attach cancel_reason to the returned data so the UI still shows it
+      if (data && cancel_reason) {
+        data.cancel_reason = cancel_reason;
+      }
+    }
 
     if (error) {
       console.error("Supabase update error:", error);

@@ -15,9 +15,12 @@ export async function POST(req: NextRequest) {
     const voiceId = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"; // Rachel voice default
 
     if (!apiKey) {
-      // Return indicator to use browser TTS fallback
+      console.log("No ElevenLabs API key — falling back to browser TTS");
       return NextResponse.json({ useBrowserTTS: true });
     }
+
+    // Truncate text if too long for the API
+    const truncatedText = text.length > 1000 ? text.slice(0, 1000) + "..." : text;
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
           "xi-api-key": apiKey,
         },
         body: JSON.stringify({
-          text,
+          text: truncatedText,
           model_id: "eleven_turbo_v2_5",
           voice_settings: {
             stability: 0.5,
@@ -41,11 +44,17 @@ export async function POST(req: NextRequest) {
     );
 
     if (!response.ok) {
-      console.error("ElevenLabs error:", response.status, await response.text());
+      const errorBody = await response.text();
+      console.error(`ElevenLabs error ${response.status}:`, errorBody);
       return NextResponse.json({ useBrowserTTS: true });
     }
 
     const audioBuffer = await response.arrayBuffer();
+
+    if (audioBuffer.byteLength < 100) {
+      console.error("ElevenLabs returned empty audio");
+      return NextResponse.json({ useBrowserTTS: true });
+    }
 
     return new NextResponse(audioBuffer, {
       headers: {
